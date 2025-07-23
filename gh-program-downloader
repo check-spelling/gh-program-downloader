@@ -136,9 +136,9 @@ get_content_type() {
 
 validate_response_code() {
   case "$1" in
-    2*)
-    return
-  ;;
+    200)
+      return
+      ;;
     401)
       title='Bad credentials'
       if [ -z "$hint" ]; then
