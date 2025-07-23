@@ -10,6 +10,24 @@ setup() {
   headers_file=$(mktemp)
 }
 
+curl_handle_error() {
+  curl_error=$(mktemp)
+  if curl -D "$headers_file" -H "$AUTHORIZATION_HEADER" -q -L "$1" -o "$2" 2> "$curl_error"; then
+    return
+  else
+    curl_error_code=$?
+  fi
+  (
+    echo "## curl failed ($curl_error_code) accessing $1"
+    echo
+    echo '```'
+    cat "$curl_error" | perl -pe 's/(\d+)(curl: \(\d+\))/$1\n$2/' || true
+    echo
+    echo '```'
+  ) | tee -a "$GITHUB_STEP_SUMMARY" >&2
+  exit "$curl_error_code"
+}
+
 list_releases() {
   releases_url_base="https://api.github.com/repos/$repo/releases"
   if [ -n "$version" ]; then
@@ -17,12 +35,12 @@ list_releases() {
   else
     releases_url="$releases_url_base"
   fi
-  curl -D "$headers_file" -H "$AUTHORIZATION_HEADER" -q -s -L "$releases_url" -o "$releases"
+  curl_handle_error "$releases_url" "$releases"
   response_code=$(get_response_code)
   type=$(get_content_type "$headers_file")
   if [ $response_code -eq 404 ]; then
     if [ -n "$version" ]; then
-      curl -D "$headers_file" -H "$AUTHORIZATION_HEADER" -q -s -L "$releases_url_base" -o "/dev/null"
+      curl_handle_error "$releases_url_base" "/dev/null"
       releases_response_code=$(get_response_code)
       if [ $releases_response_code -eq 404 ]; then
         releases_is_404=1
@@ -224,7 +242,7 @@ get_response_code() {
 
 download_artifact() {
   temp_file=$(mktemp)
-  curl -D "$headers_file" -H "$AUTHORIZATION_HEADER" -o "$temp_file" -q -s -L "$artifact"
+  curl_handle_error "$artifact" "$temp_file"
   response_code=$(get_response_code)
   content_length=$(get_content_length "$headers_file")
   request_id=$(grep -i ^x-github-request-id: "$headers_file" | tail -1)
