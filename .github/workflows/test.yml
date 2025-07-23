@@ -102,6 +102,16 @@ jobs:
         repository: check-spelling/.github
         trace: 1
 
+    - name: no hostname
+      id: no-hostname
+      continue-on-error: true
+      uses: ./action
+      with:
+        repository: check-spelling/.github
+        trace: 1
+      env:
+        GH_API_URL: http://a..a
+
     - name: check add to path
       shell: bash
       run: |
