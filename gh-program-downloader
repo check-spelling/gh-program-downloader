@@ -29,7 +29,7 @@ curl_handle_error() {
 }
 
 list_releases() {
-  releases_url_base="https://api.github.com/repos/$repo/releases"
+  releases_url_base="$GITHUB_API_URL/repos/$repo/releases"
   if [ -n "$version" ]; then
     releases_url="$releases_url_base/tags/$version"
   else
