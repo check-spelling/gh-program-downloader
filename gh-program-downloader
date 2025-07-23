@@ -73,31 +73,48 @@ find_artifact() {
         arch_re='(?:i[3-6]|x)86';;
     esac
   fi
-  os_re="$os_re" arch_re="$arch_re" version_selector="$version_selector" \
+  artifact=$(
+    os_re="$os_re" arch_re="$arch_re" version_selector="$version_selector" \
   "$GITHUB_ACTION_PATH/program-filter" "$releases"
+  )
 }
 
 select_artifact() {
-  artifact=$(find_artifact)
-  if [ -z "$artifact" ]; then
-    if [ -n "$os_re" ]; then
-      os_message="OS ('$os_re')"
-      maybe_and=1
-      matching=1
-    fi
-    if [ -n "$arch_re" ]; then
-      arch_message="ARCH ('$arch_re')"
-      if [ -n "$maybe_and" ]; then
-        and=' and '
-      fi
-      matching=1
-    fi
-    if [ -n "$matching" ]; then
-      matching='matching '
-    fi
-    echo "$0 could not find asset from '$releases_url' (saved as '$releases') ${matching}${os_message}${and}${arch_message}" >&2
-    exit 1
+  find_artifact
+  if [ -n "$artifact" ]; then
+    return
   fi
+
+  q='`'
+  if [ -n "$os_re" ]; then
+    os_message="OS ($q$os_re$q)"
+    maybe_and=1
+    matching=1
+  fi
+  if [ -n "$arch_re" ]; then
+    arch_message="arch ($q$arch_re$q)"
+    if [ -n "$maybe_and" ]; then
+      and=' and '
+    fi
+    matching=1
+  fi
+  if [ -n "$matching" ]; then
+    matching='for a release matching '
+  fi
+  if [ -n "$version_selector" ]; then
+    version_selector_message=" using version selector: $q$version_selector$q"
+  fi
+  (
+    echo "## Asset not found in release"
+    echo
+    echo "Checked $releases_url ${matching}${os_message}${and}${arch_message}${version_selector_message} with release content:"
+    echo
+    echo '```json'
+    cat "$releases"
+    echo
+    echo '```'
+  ) | tee -a "$GITHUB_STEP_SUMMARY" >&2
+  exit 1
 }
 
 set_up_auth() {

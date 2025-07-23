@@ -94,6 +94,14 @@ jobs:
         destination: bin/extra/jq
         add-to-path: 1
 
+    - name: no releases
+      id: no-releases
+      continue-on-error: true
+      uses: ./action
+      with:
+        repository: check-spelling/.github
+        trace: 1
+
     - name: check add to path
       shell: bash
       run: |
