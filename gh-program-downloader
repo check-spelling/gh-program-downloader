@@ -8,15 +8,16 @@ setup() {
   fi
   b='`'
   headers_file=$(mktemp)
+  last_curl_command=$(mktemp)
 }
 
 curl_handle_error() {
   curl_error=$(mktemp)
   if curl -D "$headers_file" -H "$AUTHORIZATION_HEADER" -q -L "$1" -o "$2" 2> "$curl_error"; then
+    echo "curl -D '$headers_file' -H '${AUTHORIZATION_HEADER%:*}: ...' -q -L '$1' -o '$2'" > "$last_curl_command"
     return
-  else
-    curl_error_code=$?
   fi
+  curl_error_code=$?
   (
     echo "## curl failed ($curl_error_code) accessing $1"
     echo
@@ -125,12 +126,33 @@ select_artifact() {
   (
     echo "## Asset not found in release"
     echo
-    echo "Checked $releases_url ${matching}${os_message}${and}${arch_message}${version_selector_message} with release content:"
+    echo "Checked $releases_url ${matching}${os_message}${and}${arch_message}${version_selector_message}"
     echo
+    echo '### curl command'
+    echo '```sh'
+    cat $last_curl_command || true
+    echo '```'
+    echo
+    echo '### http response'
+    echo
+    echo '```yaml'
+    cat "$headers_file" || true
+    echo '```'
+    echo
+    echo '### Release content'
+    echo
+    if tail -1c "$releases" | grep -q .; then
+      missing_newline_at_eof=1
+    fi
     echo '```json'
     cat "$releases"
-    echo
+    if [ -n "$missing_newline_at_eof" ]; then
+      echo
+    fi
     echo '```'
+    if [ -n "$missing_newline_at_eof" ]; then
+      echo '(missing-newline-at-eof)'
+    fi
   ) | tee -a "$GITHUB_STEP_SUMMARY" >&2
   exit 1
 }
