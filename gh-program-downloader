@@ -100,9 +100,21 @@ find_artifact() {
 }
 
 select_artifact() {
+  if [ -z "$version" ]; then
+    can_fallback=1
+  fi
   find_artifact
   if [ -n "$artifact" ]; then
     return
+  fi
+  if [ -n "$can_fallback" ] && [ $(jq -C '.[0].assets | length' "$releases") -eq 0 ]; then
+    old_version="$version"
+    version='.[1]'
+    find_artifact
+    if [ -n "$artifact" ]; then
+      return
+    fi
+    version="$old_version"
   fi
 
   q='`'
